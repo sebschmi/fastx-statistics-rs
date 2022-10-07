@@ -2,7 +2,7 @@
 name = "fastx-statistics"
 description = "Compute simple statistics for fasta-like files"
 authors = ["Sebastian Schmidt <sebastian.schmidt@helsinki.fi>"]
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 license = "BSD-2-Clause"
 rust-version = "1.58.1"
