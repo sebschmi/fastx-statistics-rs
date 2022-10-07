@@ -8,7 +8,7 @@ use std::path::PathBuf;
 #[derive(Parser)]
 struct Cli {
     /// Fasta or fastq input file (automatically detected).
-    #[clap(long)]
+    #[clap(index = 1)]
     input: PathBuf,
 }
 
