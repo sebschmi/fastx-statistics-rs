@@ -6,10 +6,10 @@ repository = "https://github.com/sebschmi/fastx-statistics-rs"
 version = "0.2.1"
 edition = "2021"
 license = "BSD-2-Clause"
-rust-version = "1.58.1"
+rust-version = "1.60.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-clap = { version = "3.2.21", features = ["derive"] }
+clap = { version = "4.0.10", features = ["derive"] }
 seq_io = "0.4.0-alpha.0"

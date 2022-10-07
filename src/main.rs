@@ -10,6 +10,10 @@ struct Cli {
     /// Fasta or fastq input file (automatically detected).
     #[clap(index = 1)]
     input: PathBuf,
+
+    /// Filter fasta or fastq records with the given ids (pass multiple times for multiple ids).
+    #[clap(long = "filter-id", value_name = "FILTER_ID")]
+    filter_ids: Vec<String>,
 }
 
 fn main() -> Result<(), String> {
@@ -21,10 +25,10 @@ fn main() -> Result<(), String> {
 
     let input_file =
         File::open(&cli.input).map_err(|err| format!("Cannot open input file: {}", err))?;
-    basic_statistics(input_file)
+    basic_statistics(input_file, &cli.filter_ids)
 }
 
-fn basic_statistics(input: impl Read) -> Result<(), String> {
+fn basic_statistics(input: impl Read, filter_ids: &[String]) -> Result<(), String> {
     let mut fastx_reader = Reader::new(BufReader::new(input));
 
     let mut sequence_lengths = Vec::new();
@@ -32,6 +36,14 @@ fn basic_statistics(input: impl Read) -> Result<(), String> {
 
     while let Some(record) = fastx_reader.next() {
         let record = record.map_err(|err| format!("Error parsing fastx: {}", err))?;
+        if filter_ids.contains(
+            &record
+                .id()
+                .map_err(|err| format!("Record id is not utf-8 encoded: {err}"))?
+                .to_owned(),
+        ) {
+            continue;
+        }
 
         sequence_lengths.push(record.seq().len());
         sequence_hoco_lengths.push(hoco_len(record.seq()));
