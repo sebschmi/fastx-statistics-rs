@@ -95,7 +95,7 @@ fn basic_statistics(input: impl Read, input_len: u64, filter_ids: &[String]) -> 
         sequence_hoco_lengths_without_ns.push(sequence_statistics.hoco_len_without_ns);
 
         let now = Instant::now();
-        if last_update + Duration::from_millis(100) >= now {
+        if last_update + Duration::from_millis(200) <= now {
             pb.set_position(fastx_reader.position().byte());
             last_update = now;
         }
