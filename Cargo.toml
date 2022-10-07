@@ -13,3 +13,6 @@ rust-version = "1.60.0"
 [dependencies]
 clap = { version = "4.0.10", features = ["derive"] }
 seq_io = "0.4.0-alpha.0"
+indicatif = "0.17.1"
+log = "0.4.17"
+simplelog = "0.12.0"

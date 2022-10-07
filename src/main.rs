@@ -1,9 +1,14 @@
 use clap::Parser;
+use indicatif::{ProgressBar, ProgressState, ProgressStyle};
+use log::{info, LevelFilter};
 use seq_io::fastx::Reader;
 use seq_io::BaseRecord;
+use simplelog::{ColorChoice, CombinedLogger, Config, TermLogger, TerminalMode};
+use std::fmt::Write;
 use std::fs::File;
 use std::io::{BufReader, Read};
 use std::path::PathBuf;
+use std::time::{Duration, Instant};
 
 #[derive(Parser)]
 struct Cli {
@@ -16,8 +21,25 @@ struct Cli {
     filter_ids: Vec<String>,
 }
 
+pub fn initialise_logging(log_level: LevelFilter) {
+    CombinedLogger::init(vec![TermLogger::new(
+        if cfg!(debug_assertions) {
+            LevelFilter::Trace
+        } else {
+            log_level
+        },
+        Config::default(),
+        TerminalMode::Mixed,
+        ColorChoice::Auto,
+    )])
+    .unwrap();
+
+    info!("Logging initialised successfully");
+}
+
 fn main() -> Result<(), String> {
     let cli = Cli::parse();
+    initialise_logging(LevelFilter::Info);
 
     if !cli.input.is_file() {
         return Err(format!("Not a file: {:?}", cli.input));
@@ -25,16 +47,34 @@ fn main() -> Result<(), String> {
 
     let input_file =
         File::open(&cli.input).map_err(|err| format!("Cannot open input file: {}", err))?;
-    basic_statistics(input_file, &cli.filter_ids)
+    let input_len = input_file
+        .metadata()
+        .map_err(|err| format!("Cannot read file metadata: {}", err))?
+        .len();
+    basic_statistics(input_file, input_len, &cli.filter_ids)
 }
 
-fn basic_statistics(input: impl Read, filter_ids: &[String]) -> Result<(), String> {
+fn basic_statistics(input: impl Read, input_len: u64, filter_ids: &[String]) -> Result<(), String> {
     let mut fastx_reader = Reader::new(BufReader::new(input));
 
     let mut sequence_lengths = Vec::new();
     let mut sequence_hoco_lengths = Vec::new();
     let mut sequence_lengths_without_ns = Vec::new();
     let mut sequence_hoco_lengths_without_ns = Vec::new();
+
+    info!("Reading fasta or fastq file...");
+    let pb = ProgressBar::new(input_len);
+    pb.set_style(
+        ProgressStyle::with_template(
+            "[{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({eta})",
+        )
+        .unwrap()
+        .with_key("eta", |state: &ProgressState, w: &mut dyn Write| {
+            write!(w, "{:.0}s", state.eta().as_secs_f64()).unwrap()
+        })
+        .progress_chars("#>-"),
+    );
+    let mut last_update = Instant::now();
 
     while let Some(record) = fastx_reader.next() {
         let record = record.map_err(|err| format!("Error parsing fastx: {}", err))?;
@@ -53,7 +93,15 @@ fn basic_statistics(input: impl Read, filter_ids: &[String]) -> Result<(), Strin
         sequence_hoco_lengths.push(sequence_statistics.hoco_len);
         sequence_lengths_without_ns.push(sequence_statistics.len_without_ns);
         sequence_hoco_lengths_without_ns.push(sequence_statistics.hoco_len_without_ns);
+
+        let now = Instant::now();
+        if last_update + Duration::from_millis(100) >= now {
+            pb.set_position(fastx_reader.position().byte());
+            last_update = now;
+        }
     }
+
+    pb.finish_and_clear();
 
     let count = sequence_lengths.len();
 
@@ -179,6 +227,6 @@ mod tests {
     #[test]
     fn test() {
         let fasta = b">1\nAAAGCGCTNNNNNTTCGAGGA\n>2\nGTGCTAGCGGGCC\nNCCCTTTTTTTTTTTT\n>3\nACGCTTATG\n>4\nGCTAACTGAGNNNNAAATTTCGGG\n>5\nAAAGGGCCTTCC\n";
-        basic_statistics(fasta.as_slice(), &[]).unwrap();
+        basic_statistics(fasta.as_slice(), fasta.len() as u64, &[]).unwrap();
     }
 }
