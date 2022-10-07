@@ -137,12 +137,18 @@ impl SequenceStatistics {
         }
 
         let is_n = |b| b == b'n' || b == b'N';
+        let mut len = 1;
         let mut hoco_len = 1;
         let mut last_byte = *sequence.first().unwrap();
         let mut ns = if is_n(last_byte) { 1 } else { 0 };
         let mut hoco_ns = ns;
 
         for byte in sequence.iter().skip(1).copied() {
+            if byte == b'\n' {
+                continue;
+            }
+
+            len += 1;
             if is_n(byte) {
                 ns += 1;
             }
@@ -158,9 +164,9 @@ impl SequenceStatistics {
         }
 
         Self {
-            len: sequence.len(),
+            len,
             hoco_len,
-            len_without_ns: sequence.len() - ns,
+            len_without_ns: len - ns,
             hoco_len_without_ns: hoco_len - hoco_ns,
         }
     }
@@ -172,7 +178,7 @@ mod tests {
 
     #[test]
     fn test() {
-        let fasta = b">1\nAAAGCGCTNNNNNTTCGAGGA\n>2\nGTGCTAGCGGGCCNCCCTTTTTTTTTTTT\n>3\nACGCTTATG\n>4\nGCTAACTGAGNNNNAAATTTCGGG\n>5\nAAAGGGCCTTCC\n";
+        let fasta = b">1\nAAAGCGCTNNNNNTTCGAGGA\n>2\nGTGCTAGCGGGCC\nNCCCTTTTTTTTTTTT\n>3\nACGCTTATG\n>4\nGCTAACTGAGNNNNAAATTTCGGG\n>5\nAAAGGGCCTTCC\n";
         basic_statistics(fasta.as_slice(), &[]).unwrap();
     }
 }
