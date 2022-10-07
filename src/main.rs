@@ -33,6 +33,7 @@ fn basic_statistics(input: impl Read, filter_ids: &[String]) -> Result<(), Strin
 
     let mut sequence_lengths = Vec::new();
     let mut sequence_hoco_lengths = Vec::new();
+    let mut num_n = 0;
 
     while let Some(record) = fastx_reader.next() {
         let record = record.map_err(|err| format!("Error parsing fastx: {}", err))?;
@@ -47,6 +48,12 @@ fn basic_statistics(input: impl Read, filter_ids: &[String]) -> Result<(), Strin
 
         sequence_lengths.push(record.seq().len());
         sequence_hoco_lengths.push(hoco_len(record.seq()));
+        num_n += record
+            .seq()
+            .iter()
+            .copied()
+            .filter(|&byte| byte == b'n' || byte == b'N')
+            .count();
     }
 
     sequence_lengths.sort_unstable_by(|a, b| b.cmp(a));
@@ -66,6 +73,7 @@ fn basic_statistics(input: impl Read, filter_ids: &[String]) -> Result<(), Strin
 
     println!("# records: {count}");
     println!("total length: {length}");
+    println!("# Ns: {num_n}");
     println!("n50: {n50}");
     println!("n75: {n75}");
     println!("total length hoco: {hoco_length}");
@@ -117,6 +125,6 @@ mod tests {
     #[test]
     fn test() {
         let fasta = b">1\nAAAGCGCTTTCGAGGA\n>2\nGTGCTAGCGGGCCCCCTTTTTTTTTTTT\n>3\nACGCTTATG\n>4\nGCTAACTGAGAAATTTCGGG\n>5\nAAAGGGCCTTCC\n";
-        basic_statistics(fasta.as_slice()).unwrap();
+        basic_statistics(fasta.as_slice(), &[]).unwrap();
     }
 }
