@@ -19,6 +19,11 @@ struct Cli {
     /// Filter fasta or fastq records with the given ids (pass multiple times for multiple ids).
     #[clap(long = "filter-id", value_name = "FILTER_ID")]
     filter_ids: Vec<String>,
+
+    /// Additional percentiles for Nx metric to report (pass multiple times for multiple percentiles).
+    /// N50 and N75 are always reported.
+    #[clap(long)]
+    additional_percentiles: Vec<u8>,
 }
 
 pub fn initialise_logging(log_level: LevelFilter) {
@@ -51,10 +56,20 @@ fn main() -> Result<(), String> {
         .metadata()
         .map_err(|err| format!("Cannot read file metadata: {}", err))?
         .len();
-    basic_statistics(input_file, input_len, &cli.filter_ids)
+    basic_statistics(
+        input_file,
+        input_len,
+        &cli.filter_ids,
+        &cli.additional_percentiles,
+    )
 }
 
-fn basic_statistics(input: impl Read, input_len: u64, filter_ids: &[String]) -> Result<(), String> {
+fn basic_statistics(
+    input: impl Read,
+    input_len: u64,
+    filter_ids: &[String],
+    additional_percentiles: &[u8],
+) -> Result<(), String> {
     let mut fastx_reader = Reader::new(BufReader::new(input));
 
     let mut sequence_lengths = Vec::new();
@@ -106,10 +121,16 @@ fn basic_statistics(input: impl Read, input_len: u64, filter_ids: &[String]) -> 
     let count = sequence_lengths.len();
 
     println!("# records: {count}");
-    print_sequence_statistics(&mut sequence_lengths, &mut sequence_lengths_without_ns, "");
+    print_sequence_statistics(
+        &mut sequence_lengths,
+        &mut sequence_lengths_without_ns,
+        additional_percentiles,
+        "",
+    );
     print_sequence_statistics(
         &mut sequence_hoco_lengths,
         &mut sequence_hoco_lengths_without_ns,
+        additional_percentiles,
         "hoco ",
     );
 
@@ -119,6 +140,7 @@ fn basic_statistics(input: impl Read, input_len: u64, filter_ids: &[String]) -> 
 fn print_sequence_statistics(
     sequence_lengths: &mut [usize],
     sequence_lengths_without_ns: &mut [usize],
+    additional_percentiles: &[u8],
     prefix: &str,
 ) {
     sequence_lengths.sort_unstable_by(|a, b| b.cmp(a));
@@ -128,16 +150,23 @@ fn print_sequence_statistics(
     let ns = length - length_without_ns;
 
     println!("{prefix}# Ns: {ns}");
-    print_nx(sequence_lengths, length, prefix, "");
+    print_nx(sequence_lengths, length, additional_percentiles, prefix, "");
     print_nx(
         sequence_lengths_without_ns,
         length_without_ns,
+        additional_percentiles,
         prefix,
         " without Ns",
     );
 }
 
-fn print_nx(sorted_sequence_lengths: &[usize], length: usize, prefix: &str, suffix: &str) {
+fn print_nx(
+    sorted_sequence_lengths: &[usize],
+    length: usize,
+    additional_percentiles: &[u8],
+    prefix: &str,
+    suffix: &str,
+) {
     let n50 = nx(sorted_sequence_lengths, length, |l| l / 2);
     let n75 = nx(sorted_sequence_lengths, length, |l| {
         l.checked_mul(3).unwrap() / 4
@@ -146,6 +175,13 @@ fn print_nx(sorted_sequence_lengths: &[usize], length: usize, prefix: &str, suff
     println!("{prefix}total length{suffix}: {length}");
     println!("{prefix}N50{suffix}: {n50}");
     println!("{prefix}N75{suffix}: {n75}");
+
+    for additional_percentile in additional_percentiles.iter().copied() {
+        let nx = nx(sorted_sequence_lengths, length, |l| {
+            ((l as u128) * u128::from(additional_percentile) / 100) as usize
+        });
+        println!("{prefix}N{additional_percentile}{suffix}: {nx}");
+    }
 }
 
 fn nx(lengths: &[usize], sum: usize, percentile: impl FnOnce(usize) -> usize) -> usize {
@@ -227,6 +263,6 @@ mod tests {
     #[test]
     fn test() {
         let fasta = b">1\nAAAGCGCTNNNNNTTCGAGGA\n>2\nGTGCTAGCGGGCC\nNCCCTTTTTTTTTTTT\n>3\nACGCTTATG\n>4\nGCTAACTGAGNNNNAAATTTCGGG\n>5\nAAAGGGCCTTCC\n";
-        basic_statistics(fasta.as_slice(), fasta.len() as u64, &[]).unwrap();
+        basic_statistics(fasta.as_slice(), fasta.len() as u64, &[], &[90]).unwrap();
     }
 }
