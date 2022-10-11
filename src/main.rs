@@ -22,7 +22,7 @@ struct Cli {
 
     /// Additional percentiles for Nx metric to report (pass multiple times for multiple percentiles).
     /// N50 and N75 are always reported.
-    #[clap(long)]
+    #[clap(long = "additional-percentile", value_name = "ADDITIONAL_PERCENTILE")]
     additional_percentiles: Vec<u8>,
 }
 
