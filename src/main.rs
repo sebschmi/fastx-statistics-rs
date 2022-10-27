@@ -121,18 +121,20 @@ fn basic_statistics(
     let count = sequence_lengths.len();
 
     println!("# records: {count}");
-    print_sequence_statistics(
-        &mut sequence_lengths,
-        &mut sequence_lengths_without_ns,
-        additional_percentiles,
-        "",
-    );
-    print_sequence_statistics(
-        &mut sequence_hoco_lengths,
-        &mut sequence_hoco_lengths_without_ns,
-        additional_percentiles,
-        "hoco ",
-    );
+    if count > 0 {
+        print_sequence_statistics(
+            &mut sequence_lengths,
+            &mut sequence_lengths_without_ns,
+            additional_percentiles,
+            "",
+        );
+        print_sequence_statistics(
+            &mut sequence_hoco_lengths,
+            &mut sequence_hoco_lengths_without_ns,
+            additional_percentiles,
+            "hoco ",
+        );
+    }
 
     Ok(())
 }
@@ -182,6 +184,15 @@ fn print_nx(
         });
         println!("{prefix}N{additional_percentile}{suffix}: {nx}");
     }
+
+    println!(
+        "{prefix}max len{suffix}: {}",
+        sorted_sequence_lengths.first().unwrap()
+    );
+    println!(
+        "{prefix}min len{suffix}: {}",
+        sorted_sequence_lengths.last().unwrap()
+    );
 }
 
 fn nx(lengths: &[usize], sum: usize, percentile: impl FnOnce(usize) -> usize) -> usize {
